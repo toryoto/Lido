@@ -6,12 +6,7 @@ pragma solidity 0.8.9;
 
 import {ILidoLocator} from "../common/interfaces/ILidoLocator.sol";
 
-/**
- * @title LidoLocator
- * @author mymphe
- * @notice Lido service locator
- * @dev configuration is stored as public immutables to reduce gas consumption
- */
+// Lido内で使用する様々なコントラクトのアドレスを一元管理して、他のコントラクトから見つけやすくするための中央レジストリとして機能する
 contract LidoLocator is ILidoLocator {
     struct Config {
         address accountingOracle;
