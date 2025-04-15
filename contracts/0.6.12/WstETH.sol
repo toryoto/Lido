@@ -8,29 +8,15 @@ pragma solidity 0.6.12;
 import "@openzeppelin/contracts/drafts/ERC20Permit.sol";
 import "./interfaces/IStETH.sol";
 
-/**
- * @title StETH token wrapper with static balances.
- * @dev It's an ERC20 token that represents the account's share of the total
- * supply of stETH tokens. WstETH token's balance only changes on transfers,
- * unlike StETH that is also changed when oracles report staking rewards and
- * penalties. It's a "power user" token for DeFi protocols which don't
- * support rebasable tokens.
- *
- * The contract is also a trustless wrapper that accepts stETH tokens and mints
- * wstETH in return. Then the user unwraps, the contract burns user's wstETH
- * and sends user locked stETH in return.
- *
- * The contract provides the staking shortcut: user can send ETH with regular
- * transfer and get wstETH in return. The contract will send ETH to Lido submit
- * method, staking it and wrapping the received stETH.
- *
- */
+// wstETHはstETHを他のDeFiで使用できるようにするためのもの
+// wstETHの残高は送金時にのみ変化する
+// stETHトークンを受け入れ、その見返りとしてwstETH(ERC20トークン)をミントする
+// ユーザーは普通のETH送金によってこのコントラクトにETHを送って、見返りとしてwstETHを受け取ることができる
+// 送金されたETHは自動的にLidoのsubmitメソッドに転送され、そこで自動的にETHをステーキングしてstETHとなり、それも自動的にWrapされる
 contract WstETH is ERC20Permit {
     IStETH public stETH;
 
-    /**
-     * @param _stETH address of the StETH token to wrap
-     */
+    // デプロイ時にstETHのアドレスを指定する
     constructor(IStETH _stETH)
         public
         ERC20Permit("Wrapped liquid staked Ether 2.0")
@@ -53,23 +39,20 @@ contract WstETH is ERC20Permit {
     function wrap(uint256 _stETHAmount) external returns (uint256) {
         require(_stETHAmount > 0, "wstETH: can't wrap zero stETH");
         uint256 wstETHAmount = stETH.getSharesByPooledEth(_stETHAmount);
+        // stETH量に基づいてwstETHをミントする
         _mint(msg.sender, wstETHAmount);
         stETH.transferFrom(msg.sender, address(this), _stETHAmount);
         return wstETHAmount;
     }
 
-    /**
-     * @notice Exchanges wstETH to stETH
-     * @param _wstETHAmount amount of wstETH to uwrap in exchange for stETH
-     * @dev Requirements:
-     *  - `_wstETHAmount` must be non-zero
-     *  - msg.sender must have at least `_wstETHAmount` wstETH.
-     * @return Amount of stETH user receives after unwrap
-     */
+    // wstETHをアンラップしてstETHにするメソッド
     function unwrap(uint256 _wstETHAmount) external returns (uint256) {
         require(_wstETHAmount > 0, "wstETH: zero amount unwrap not allowed");
+        // 指定されたwstETHと同等のstETHの量を取得
         uint256 stETHAmount = stETH.getPooledEthByShares(_wstETHAmount);
+        // アンラップする量のwstETHをバーンする
         _burn(msg.sender, _wstETHAmount);
+        // アンラップした分のstETHを送金する
         stETH.transfer(msg.sender, stETHAmount);
         return stETHAmount;
     }
@@ -100,18 +83,12 @@ contract WstETH is ERC20Permit {
         return stETH.getPooledEthByShares(_wstETHAmount);
     }
 
-    /**
-     * @notice Get amount of stETH for a one wstETH
-     * @return Amount of stETH for 1 wstETH
-     */
+    // 1 wstETHあたりのstETHの量
     function stEthPerToken() external view returns (uint256) {
         return stETH.getPooledEthByShares(1 ether);
     }
 
-    /**
-     * @notice Get amount of wstETH for a one stETH
-     * @return Amount of wstETH for a 1 stETH
-     */
+    // 1 stETHあたりのwstETHの量
     function tokensPerStEth() external view returns (uint256) {
         return stETH.getSharesByPooledEth(1 ether);
     }
